@@ -10,6 +10,7 @@ import '../../blocs/settings/settings_bloc.dart';
 import '../../blocs/settings/settings_event.dart';
 import '../../blocs/settings/settings_state.dart';
 import 'backup_screen.dart';
+import '../logros/logros_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -65,6 +66,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ]),
                 const SizedBox(height: 16),
                 _buildSection('COMPARTIR Y EXPORTAR', [
+                  _buildTile(
+                    icon: Icons.emoji_events_outlined,
+                    title: 'Mis Logros',
+                    subtitle: 'Rachas, badges y estadísticas de progreso',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<SettingsBloc>(),
+                          child: const LogrosScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _buildTile(
                     icon: Icons.share_outlined,
                     title: 'Compartir KineticLog',
