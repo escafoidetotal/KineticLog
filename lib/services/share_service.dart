@@ -10,6 +10,7 @@ import '../data/models/rutina.dart';
 import '../data/models/ejercicio.dart';
 import '../data/models/sesion_entrenamiento.dart';
 import '../data/models/dia_macro.dart';
+import '../data/models/badge.dart';
 
 class ShareService {
   static final ShareService _instance = ShareService._internal();
@@ -22,6 +23,27 @@ class ShareService {
     Share.share(
       AppConstants.shareAppText,
       subject: '${AppConstants.appName} — ${AppConstants.slogan}',
+    );
+  }
+
+  // ─── Compartir badge ──────────────────────────────────────────────────────
+
+  void shareBadge(Badge badge) {
+    Share.share(
+      badge.shareText,
+      subject: '🏆 Logro desbloqueado en KineticLog',
+    );
+  }
+
+  // ─── Compartir racha ──────────────────────────────────────────────────────
+
+  void shareRacha(int racha) {
+    final texto = '🔥 ¡Llevo $racha días consecutivos entrenando con KineticLog!\n\n'
+        '"${AppConstants.slogan}"\n'
+        '👉 Descarga KineticLog gratis';
+    Share.share(
+      texto,
+      subject: '🔥 $racha días en racha con KineticLog',
     );
   }
 

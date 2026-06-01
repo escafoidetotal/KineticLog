@@ -48,4 +48,34 @@ class SettingsRepository {
       await _db.ajustesApps.put(a);
     });
   }
+
+  Future<void> actualizarRacha(
+    int racha,
+    int rachMax,
+    DateTime ultimoEntreno,
+  ) async {
+    await _db.writeTxn(() async {
+      final a = (await _db.ajustesApps.get(1)) ?? AjustesApp();
+      a.rachaActual = racha;
+      a.rachaMáxima = rachMax;
+      a.ultimoEntrenamiento = ultimoEntreno;
+      await _db.ajustesApps.put(a);
+    });
+  }
+
+  Future<void> desbloquearBadge(String badgeId) async {
+    await _db.writeTxn(() async {
+      final a = (await _db.ajustesApps.get(1)) ?? AjustesApp();
+      if (!a.badgesDesbloqueados.contains(badgeId)) {
+        a.badgesDesbloqueados = List<String>.from(a.badgesDesbloqueados)
+          ..add(badgeId);
+        await _db.ajustesApps.put(a);
+      }
+    });
+  }
+
+  Future<List<String>> obtenerBadgesDesbloqueados() async {
+    final a = await obtener();
+    return List<String>.from(a.badgesDesbloqueados);
+  }
 }

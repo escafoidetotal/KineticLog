@@ -34,6 +34,14 @@ class AjustesApp {
   // Backup info
   DateTime? ultimoBackup;
 
+  // Rachas
+  int rachaActual = 0;
+  int rachaMáxima = 0;
+  DateTime? ultimoEntrenamiento;
+
+  // Badges desbloqueados (lista de ids)
+  List<String> badgesDesbloqueados = [];
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'slotsDisponibles': slotsDisponibles,
@@ -50,6 +58,10 @@ class AjustesApp {
         'sesionesFinalizadas': sesionesFinalizadas,
         'rutinasCreadas': rutinasCreadas,
         'ultimoBackup': ultimoBackup?.toIso8601String(),
+        'rachaActual': rachaActual,
+        'rachaMáxima': rachaMáxima,
+        'ultimoEntrenamiento': ultimoEntrenamiento?.toIso8601String(),
+        'badgesDesbloqueados': badgesDesbloqueados,
       };
 
   static AjustesApp fromJson(Map<String, dynamic> json) {
@@ -70,6 +82,15 @@ class AjustesApp {
     a.ultimoBackup = json['ultimoBackup'] != null
         ? DateTime.parse(json['ultimoBackup'] as String)
         : null;
+    a.rachaActual = (json['rachaActual'] as int?) ?? 0;
+    a.rachaMáxima = (json['rachaMáxima'] as int?) ?? 0;
+    a.ultimoEntrenamiento = json['ultimoEntrenamiento'] != null
+        ? DateTime.parse(json['ultimoEntrenamiento'] as String)
+        : null;
+    a.badgesDesbloqueados = (json['badgesDesbloqueados'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        [];
     return a;
   }
 

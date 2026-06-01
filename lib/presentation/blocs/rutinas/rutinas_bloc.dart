@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../data/models/sesion_entrenamiento.dart';
 import '../../../data/repositories/rutina_repository.dart';
 import '../../../data/repositories/settings_repository.dart';
+import '../../../services/racha_service.dart';
 import 'rutinas_event.dart';
 import 'rutinas_state.dart';
 
@@ -132,7 +133,16 @@ class RutinasBloc extends Bloc<RutinasEvent, RutinasState> {
     _timer?.cancel();
     await _rutinaRepo.guardarSesion(event.sesion);
     await _settingsRepo.incrementarSesionesFinalizadas();
+
+    final badgesNuevos = await RachaService().registrarEntrenamiento(
+      event.sesion.fecha,
+    );
+
     emit(EntrenamientoFinalizado(event.sesion));
+
+    for (final badge in badgesNuevos) {
+      emit(BadgeDesbloqueado(badge));
+    }
   }
 
   Future<void> _onSolicitarDesbloqueoSlot(

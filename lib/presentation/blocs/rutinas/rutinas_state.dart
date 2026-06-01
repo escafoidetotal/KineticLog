@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import '../../../data/models/rutina.dart';
 import '../../../data/models/ejercicio.dart';
 import '../../../data/models/sesion_entrenamiento.dart';
+import '../../../data/models/badge.dart';
 
 abstract class RutinasState extends Equatable {
   const RutinasState();
@@ -78,6 +79,13 @@ class EntrenamientoFinalizado extends RutinasState {
   const EntrenamientoFinalizado(this.sesion);
   @override
   List<Object?> get props => [sesion];
+}
+
+class BadgeDesbloqueado extends RutinasState {
+  final Badge badge;
+  const BadgeDesbloqueado(this.badge);
+  @override
+  List<Object?> get props => [badge];
 }
 
 class RutinasError extends RutinasState {
