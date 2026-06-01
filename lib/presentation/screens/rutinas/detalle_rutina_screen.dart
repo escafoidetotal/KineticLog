@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/unit_utils.dart';
 import '../../../data/models/sesion_entrenamiento.dart';
 import '../../../services/share_service.dart';
 import '../../blocs/rutinas/rutinas_bloc.dart';
 import '../../blocs/rutinas/rutinas_event.dart';
 import '../../blocs/rutinas/rutinas_state.dart';
+import '../../blocs/settings/settings_bloc.dart';
+import '../../blocs/settings/settings_state.dart';
 import '../../widgets/rest_timer_controller.dart';
 import '../../widgets/rest_timer_overlay.dart';
 import 'widgets/agregar_ejercicio_sheet.dart';
@@ -277,6 +280,8 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
   }
 
   Widget _buildEjercicioCard(ejercicio, List<SetRealizado> sets, int rutinaId) {
+    final settingsState = context.read<SettingsBloc>().state;
+    final usarKilos = settingsState is SettingsLoaded ? settingsState.ajustes.usarKilos : true;
     final completados = sets.where((s) => s.completado).length;
     final color = Color(0xFF39FF14);
 
@@ -305,7 +310,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                       )),
                       Text(
                         '${ejercicio.objetivo.series} series × ${ejercicio.objetivo.repeticiones} reps'
-                        '${ejercicio.objetivo.pesoKg > 0 ? ' · ${ejercicio.objetivo.pesoKg}kg' : ''}',
+                        '${ejercicio.objetivo.pesoKg > 0 ? ' · ${UnitUtils.formatPeso(ejercicio.objetivo.pesoKg.toDouble(), usarKilos)}' : ''}',
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                       ),
                     ],
@@ -358,7 +363,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
             final setIndex = _setsActivos.indexWhere(
               (s) => s.ejercicioId == ejercicio.id && s.setNumero == entry.value.setNumero,
             );
-            return _buildSetRow(entry.value, setIndex);
+            return _buildSetRow(entry.value, setIndex, usarKilos: usarKilos);
           }),
           const SizedBox(height: 4),
         ],
@@ -366,7 +371,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
     );
   }
 
-  Widget _buildSetRow(SetRealizado set, int globalIndex) {
+  Widget _buildSetRow(SetRealizado set, int globalIndex, {required bool usarKilos}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
@@ -405,7 +410,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                   ),
                   if (set.pesoKg > 0)
                     Text(
-                      '${set.pesoKg}kg',
+                      UnitUtils.formatPeso(set.pesoKg, usarKilos),
                       style: TextStyle(
                         color: set.completado ? AppColors.primary : AppColors.textSecondary,
                         fontSize: 13,

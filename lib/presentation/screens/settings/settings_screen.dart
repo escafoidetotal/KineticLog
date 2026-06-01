@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/unit_utils.dart';
 import '../../../data/models/ajustes_app.dart';
 import '../../../services/backup_service.dart';
 import '../../../services/share_service.dart';
@@ -170,7 +171,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: Column(
         children: [
-          _perfilRow('Peso', '${ajustes.pesoKg.toStringAsFixed(1)} kg'),
+          _perfilRow('Peso', UnitUtils.formatPeso(ajustes.pesoKg, ajustes.usarKilos)),
           const Divider(color: AppColors.divider, height: 16),
           _perfilRow('Altura', '${ajustes.alturaCm.toInt()} cm'),
           const Divider(color: AppColors.divider, height: 16),
@@ -179,7 +180,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _perfilRow('IMC estimado', ajustes.imc.toStringAsFixed(1)),
           const Divider(color: AppColors.divider, height: 16),
           _perfilRow('TDEE estimado', '${ajustes.tdeeEstimado.toInt()} kcal/día'),
-          const SizedBox(height: 16),
+          const Divider(color: AppColors.divider, height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Unidades de peso',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            subtitle: Text(
+              ajustes.usarKilos ? 'kg' : 'lb',
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+            value: ajustes.usarKilos,
+            activeColor: AppColors.primary,
+            onChanged: (_) {
+              final updated = AjustesApp.fromJson(ajustes.toJson())
+                ..usarKilos = !ajustes.usarKilos;
+              context.read<SettingsBloc>().add(ActualizarSettings(updated));
+            },
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () => _editarPerfil(context, ajustes),
             icon: const Icon(Icons.person_outline, size: 16),

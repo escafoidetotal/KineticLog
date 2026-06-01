@@ -1,10 +1,14 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/unit_utils.dart';
 import '../../../data/models/sesion_entrenamiento.dart';
 import '../../../data/repositories/progreso_repository.dart';
+import '../../blocs/settings/settings_bloc.dart';
+import '../../blocs/settings/settings_state.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Selector de métrica
@@ -107,9 +111,11 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
 
   // ── Puntos del gráfico ────────────────────────────────────────────────────
 
-  List<FlSpot> get _spots {
+  List<FlSpot> _spots(bool usarKilos) {
     return _datos.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), _metrica.valorDe(e.value));
+      final raw = _metrica.valorDe(e.value);
+      final y = _metrica == _Metrica.volumen ? raw : UnitUtils.fromKg(raw, usarKilos);
+      return FlSpot(e.key.toDouble(), y);
     }).toList();
   }
 
@@ -122,22 +128,27 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
 
   // ── Rango Y ───────────────────────────────────────────────────────────────
 
-  double get _minY {
+  double _minY(bool usarKilos) {
     if (_datos.isEmpty) return 0;
     final min = _datos.map(_metrica.valorDe).reduce((a, b) => a < b ? a : b);
-    return (min * 0.9).floorToDouble();
+    final converted = _metrica == _Metrica.volumen ? min : UnitUtils.fromKg(min, usarKilos);
+    return (converted * 0.9).floorToDouble();
   }
 
-  double get _maxY {
+  double _maxY(bool usarKilos) {
     if (_datos.isEmpty) return 10;
     final max = _datos.map(_metrica.valorDe).reduce((a, b) => a > b ? a : b);
-    return (max * 1.1).ceilToDouble();
+    final converted = _metrica == _Metrica.volumen ? max : UnitUtils.fromKg(max, usarKilos);
+    return (converted * 1.1).ceilToDouble();
   }
 
   // ──────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final settingsState = context.read<SettingsBloc>().state;
+    final usarKilos = settingsState is SettingsLoaded ? settingsState.ajustes.usarKilos : true;
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
@@ -149,7 +160,7 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
             )
           : _datos.isEmpty
               ? _buildEstadoVacio()
-              : _buildContenido(),
+              : _buildContenido(usarKilos),
     );
   }
 
@@ -187,26 +198,26 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
 
   // ── Contenido principal ───────────────────────────────────────────────────
 
-  Widget _buildContenido() {
+  Widget _buildContenido(bool usarKilos) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        _buildTarjetaMejorMarca(),
+        _buildTarjetaMejorMarca(usarKilos),
         const SizedBox(height: 16),
         _buildSelectorMetrica(),
         const SizedBox(height: 16),
-        _buildGrafico(),
+        _buildGrafico(usarKilos),
         const SizedBox(height: 24),
         _buildTituloSeccion('Sesiones recientes'),
         const SizedBox(height: 8),
-        ..._recientes.map(_buildFilaSesion),
+        ..._recientes.map((r) => _buildFilaSesion(r, usarKilos)),
       ],
     );
   }
 
   // ── Tarjeta mejor marca ───────────────────────────────────────────────────
 
-  Widget _buildTarjetaMejorMarca() {
+  Widget _buildTarjetaMejorMarca(bool usarKilos) {
     final mejor = _mejorMarca;
     if (mejor == null) return const SizedBox.shrink();
 
@@ -254,7 +265,7 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '${_formatNum(mejor.pesoMax)} kg',
+                      UnitUtils.formatPeso(mejor.pesoMax, usarKilos),
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontSize: 26,
@@ -317,8 +328,13 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
 
   // ── Gráfico ───────────────────────────────────────────────────────────────
 
-  Widget _buildGrafico() {
-    final spots = _spots;
+  Widget _buildGrafico(bool usarKilos) {
+    final spots = _spots(usarKilos);
+    final minY = _minY(usarKilos);
+    final maxY = _maxY(usarKilos);
+    final unidad = _metrica == _Metrica.volumen
+        ? (usarKilos ? 'kg·rep' : 'lb·rep')
+        : (usarKilos ? 'kg' : 'lb');
 
     if (spots.length < 2) {
       return Container(
@@ -342,7 +358,7 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
     }
 
     // Intervalo dinámico eje Y
-    final rango = _maxY - _minY;
+    final rango = maxY - minY;
     final intervaloY =
         rango <= 0 ? 10.0 : double.parse((rango / 4).toStringAsFixed(1));
 
@@ -363,8 +379,8 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
           LineChartData(
             minX: 0,
             maxX: (spots.length - 1).toDouble(),
-            minY: _minY,
-            maxY: _maxY,
+            minY: minY,
+            maxY: maxY,
             clipData: const FlClipData.all(),
             backgroundColor: AppColors.card,
             lineTouchData: LineTouchData(
@@ -387,10 +403,13 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
                   return spots.map((spot) {
                     final idx = spot.spotIndex;
                     final dato = _datos[idx];
-                    final valor = _metrica.valorDe(dato);
+                    final raw = _metrica.valorDe(dato);
+                    final valor = _metrica == _Metrica.volumen
+                        ? raw
+                        : UnitUtils.fromKg(raw, usarKilos);
                     return LineTooltipItem(
                       '${DateFormat('dd/MM/yyyy').format(dato.fecha)}\n'
-                      '${_formatNum(valor)} ${_metrica.unidad}',
+                      '${_formatNum(valor)} $unidad',
                       const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w700,
@@ -503,17 +522,20 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
     );
   }
 
-  Widget _buildFilaSesion(({DateTime fecha, List<SetRealizado> sets}) item) {
+  Widget _buildFilaSesion(({DateTime fecha, List<SetRealizado> sets}) item, bool usarKilos) {
     final setsCompletados = item.sets.where((s) => s.completado).toList();
-    final pesoMax = setsCompletados.isEmpty
+    final pesoMaxKg = setsCompletados.isEmpty
         ? 0.0
         : setsCompletados
             .map((s) => s.pesoKg)
             .reduce((a, b) => a > b ? a : b);
-    final volumen = setsCompletados.fold<double>(
+    final volumenKg = setsCompletados.fold<double>(
       0.0,
       (acc, s) => acc + (s.repeticiones * s.pesoKg),
     );
+    final pesoMaxDisplay = UnitUtils.fromKg(pesoMaxKg, usarKilos);
+    final volumenDisplay = usarKilos ? volumenKg : volumenKg * 2.20462;
+    final weightUnit = usarKilos ? 'kg' : 'lb';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -560,14 +582,14 @@ class _ProgresoEjercicioScreenState extends State<ProgresoEjercicioScreen> {
           // Peso máx
           _buildChip(
             Icons.fitness_center,
-            '${_formatNum(pesoMax)} kg',
+            '${_formatNum(pesoMaxDisplay)} $weightUnit',
             AppColors.primary,
           ),
           const SizedBox(width: 6),
           // Volumen
           _buildChip(
             Icons.bar_chart,
-            '${_formatNum(volumen)} kg·r',
+            '${_formatNum(volumenDisplay)} $weightUnit·r',
             AppColors.accent,
           ),
         ],
