@@ -1,0 +1,56 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.g.dart
+*.freezed.dart
+*.isar
+*.lock
+
+# Isar — generados por build_runner
+lib/data/models/*.g.dart
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/google-services.json
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Misc
+.DS_Store
+*.class
+*.log
+*.pyc
+*.swp
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ/Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Web
+web/
+
+# Archivos de backup generados por la app (no comprometer)
+*.kbl
