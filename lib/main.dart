@@ -14,6 +14,7 @@ import 'presentation/blocs/rutinas/rutinas_bloc.dart';
 import 'presentation/blocs/settings/settings_bloc.dart';
 import 'presentation/blocs/settings/settings_event.dart';
 import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/onboarding/onboarding_screen.dart';
 import 'services/ad_manager.dart';
 import 'services/isar_service.dart';
 
@@ -105,25 +106,34 @@ class _StartupWrapper extends StatefulWidget {
 }
 
 class _StartupWrapperState extends State<_StartupWrapper> {
-  bool _disclaimerShown = false;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkDisclaimer());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkStartup());
   }
 
-  Future<void> _checkDisclaimer() async {
-    final settingsRepo = context.read<SettingsBloc>().state;
-    // Cargamos los ajustes para verificar si hay que mostrar el disclaimer
+  Future<void> _checkStartup() async {
     context.read<SettingsBloc>().add(CargarSettings());
     await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) _mostrarDisclaimerSiNecesario();
-  }
+    if (!mounted) return;
 
-  Future<void> _mostrarDisclaimerSiNecesario() async {
     final repo = SettingsRepository();
     final ajustes = await repo.obtener();
+
+    if (!mounted) return;
+
+    if (ajustes.mostrarTutorial) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
+      return;
+    }
+
+    _mostrarDisclaimerSiNecesario(repo, ajustes);
+  }
+
+  Future<void> _mostrarDisclaimerSiNecesario(SettingsRepository repo, ajustes) async {
     if (!ajustes.disclaimerMostrado && mounted) {
       await showDialog(
         context: context,
