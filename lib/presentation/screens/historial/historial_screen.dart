@@ -6,6 +6,7 @@ import '../../../core/constants/ad_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/format_utils.dart';
+import '../../../data/models/dia_macro.dart';
 import '../../../data/models/sesion_entrenamiento.dart';
 import '../../../services/ad_manager.dart';
 import '../../../services/export_service.dart';
@@ -13,6 +14,8 @@ import '../../../services/share_service.dart';
 import '../../blocs/historial/historial_bloc.dart';
 import '../../blocs/historial/historial_event.dart';
 import '../../blocs/historial/historial_state.dart';
+import 'widgets/macros_chart_card.dart';
+import 'widgets/resumen_semana_card.dart';
 
 class HistorialScreen extends StatefulWidget {
   const HistorialScreen({super.key});
@@ -21,15 +24,18 @@ class HistorialScreen extends StatefulWidget {
   State<HistorialScreen> createState() => _HistorialScreenState();
 }
 
-class _HistorialScreenState extends State<HistorialScreen> {
+class _HistorialScreenState extends State<HistorialScreen>
+    with SingleTickerProviderStateMixin {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   BannerAd? _bannerAd;
   bool _bannerLoaded = false;
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     context.read<HistorialBloc>().add(CargarHistorial());
     if (AdConstants.showBannerOnHistory) _loadBanner();
   }
@@ -43,6 +49,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -68,6 +75,19 @@ class _HistorialScreenState extends State<HistorialScreen> {
             ],
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: AppColors.divider,
+          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          tabs: const [
+            Tab(text: 'Entrenamientos'),
+            Tab(text: 'Macros'),
+          ],
+        ),
       ),
       body: BlocBuilder<HistorialBloc, HistorialState>(
         builder: (context, state) {
@@ -75,7 +95,13 @@ class _HistorialScreenState extends State<HistorialScreen> {
             return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
           if (state is HistorialLoaded) {
-            return _buildContent(context, state);
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _buildContent(context, state),
+                _buildMacrosTab(context, state),
+              ],
+            );
           }
           return const SizedBox.shrink();
         },
@@ -199,6 +225,102 @@ class _HistorialScreenState extends State<HistorialScreen> {
             child: AdWidget(ad: _bannerAd!),
           ),
       ],
+    );
+  }
+
+  Widget _buildMacrosTab(BuildContext context, HistorialLoaded state) {
+    final diasOrdenados = List.of(state.macros)
+      ..sort((a, b) => b.fecha.compareTo(a.fecha));
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 16),
+            children: [
+              ResumenSemanaCard(dias: state.macros),
+              MacrosChartCard(dias: state.macros),
+              if (diasOrdenados.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 6),
+                  child: Text(
+                    'Días registrados',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ...diasOrdenados.map((dia) => _buildDiaMacroItem(dia)),
+              ],
+            ],
+          ),
+        ),
+        if (_bannerLoaded && _bannerAd != null)
+          SizedBox(
+            width: _bannerAd!.size.width.toDouble(),
+            height: _bannerAd!.size.height.toDouble(),
+            child: AdWidget(ad: _bannerAd!),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildDiaMacroItem(DiaMacro dia) {
+    final kcalCons = dia.caloriasConsumidas.round();
+    final kcalObj = dia.objetivoCalorias.round();
+    final dd = dia.fecha.day.toString().padLeft(2, '0');
+    final mm = dia.fecha.month.toString().padLeft(2, '0');
+    final yyyy = dia.fecha.year;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Text(
+            dia.objetivoCumplido ? '✅' : '❌',
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$dd/$mm/$yyyy',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$kcalCons kcal',
+                style: const TextStyle(
+                  color: AppColors.calorieColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                'obj. $kcalObj kcal',
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
