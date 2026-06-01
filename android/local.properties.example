@@ -1,0 +1,8 @@
+# Copia este archivo como local.properties y ajusta las rutas.
+# NO commits local.properties (está en .gitignore).
+
+sdk.dir=/ruta/a/android/sdk
+flutter.sdk=/ruta/a/flutter
+flutter.buildMode=release
+flutter.versionName=1.0.0
+flutter.versionCode=1

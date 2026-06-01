@@ -54,6 +54,8 @@ dev_dependencies:
   isar_generator: ^3.1.0+1
   build_runner: ^2.4.9
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.9
 
 flutter:
   uses-material-design: true
@@ -61,3 +63,17 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  image_path: "assets/images/icon.png"
+  adaptive_icon_background: "#0F0F0F"
+  adaptive_icon_foreground: "assets/images/icon.png"
+  min_sdk_android: 24
+
+flutter_native_splash:
+  color: "#0F0F0F"
+  image: assets/images/logo.png
+  android_12:
+    color: "#0F0F0F"
+    image: assets/images/logo.png
