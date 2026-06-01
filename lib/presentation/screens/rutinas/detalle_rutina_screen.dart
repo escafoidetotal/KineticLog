@@ -8,7 +8,10 @@ import '../../../services/share_service.dart';
 import '../../blocs/rutinas/rutinas_bloc.dart';
 import '../../blocs/rutinas/rutinas_event.dart';
 import '../../blocs/rutinas/rutinas_state.dart';
+import '../../widgets/rest_timer_controller.dart';
+import '../../widgets/rest_timer_overlay.dart';
 import 'widgets/agregar_ejercicio_sheet.dart';
+import '../ejercicio/progreso_ejercicio_screen.dart';
 
 class DetalleRutinaScreen extends StatefulWidget {
   final int rutinaId;
@@ -23,10 +26,15 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
   int _segundos = 0;
   bool _entrenamientoIniciado = false;
   List<SetRealizado> _setsActivos = [];
+  late final RestTimerController _restTimerController;
 
   @override
   void initState() {
     super.initState();
+    _restTimerController = RestTimerController();
+    _restTimerController.addListener(() {
+      if (mounted) setState(() {});
+    });
     context.read<RutinasBloc>().add(CargarEjerciciosDeRutina(widget.rutinaId));
   }
 
@@ -45,6 +53,24 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
     setState(() {
       _setsActivos[index].completado = completado;
     });
+    if (completado && _restTimerController.duracionTotal > 0) {
+      final set = _setsActivos[index];
+      // Buscar el nombre del ejercicio correspondiente a este set
+      final blocState = context.read<RutinasBloc>().state;
+      String nombreEjercicio = '';
+      if (blocState is RutinaDetalle) {
+        final ejercicio = blocState.ejercicios.firstWhere(
+          (e) => e.id == set.ejercicioId,
+          orElse: () => blocState.ejercicios.first,
+        );
+        nombreEjercicio = ejercicio.nombre;
+      }
+      _restTimerController.iniciar(
+        _restTimerController.duracionTotal,
+        nombreEjercicio,
+        set.setNumero,
+      );
+    }
   }
 
   void _finalizarEntrenamiento(RutinaDetalle state) {
@@ -109,6 +135,7 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _restTimerController.dispose();
     super.dispose();
   }
 
@@ -156,6 +183,11 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                     ),
                   ),
                 IconButton(
+                  icon: const Icon(Icons.timer_outlined),
+                  tooltip: 'Duración del descanso',
+                  onPressed: () => _mostrarDialogDuracionDescanso(context),
+                ),
+                IconButton(
                   icon: const Icon(Icons.share_outlined),
                   onPressed: () => ShareService().shareRutina(state.rutina, state.ejercicios),
                 ),
@@ -165,14 +197,20 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                 ),
               ],
             ),
-            body: Column(
+            body: Stack(
               children: [
-                if (!_entrenamientoIniciado) _buildStartBanner(),
-                Expanded(
-                  child: state.ejercicios.isEmpty
-                      ? _buildEmptyEjercicios(context, state.rutina.id)
-                      : _buildEjerciciosList(state),
+                Column(
+                  children: [
+                    if (!_entrenamientoIniciado) _buildStartBanner(),
+                    Expanded(
+                      child: state.ejercicios.isEmpty
+                          ? _buildEmptyEjercicios(context, state.rutina.id)
+                          : _buildEjerciciosList(state),
+                    ),
+                  ],
                 ),
+                if (_restTimerController.activo)
+                  RestTimerOverlay(controller: _restTimerController),
               ],
             ),
             floatingActionButton: _entrenamientoIniciado
@@ -289,6 +327,19 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
                           : AppColors.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.show_chart, size: 18, color: AppColors.textSecondary),
+                  tooltip: 'Ver progreso',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProgresoEjercicioScreen(
+                        ejercicioId: ejercicio.id,
+                        ejercicioNombre: ejercicio.nombre,
+                      ),
                     ),
                   ),
                 ),
@@ -418,6 +469,102 @@ class _DetalleRutinaScreenState extends State<DetalleRutinaScreen> {
       builder: (_) => BlocProvider.value(
         value: context.read<RutinasBloc>(),
         child: AgregarEjercicioSheet(rutinaId: rutinaId),
+      ),
+    );
+  }
+
+  void _mostrarDialogDuracionDescanso(BuildContext context) {
+    // -1 representa "sin timer"
+    int seleccionado = _restTimerController.duracionTotal;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: Row(
+            children: const [
+              Icon(Icons.timer_outlined, color: AppColors.primary, size: 20),
+              SizedBox(width: 8),
+              Text('Duración del descanso'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Elige cuántos segundos descansar entre series.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...([60, 90, 120, 180]).map((s) {
+                    final selected = seleccionado == s;
+                    return ChoiceChip(
+                      label: Text('${s}s'),
+                      selected: selected,
+                      selectedColor: AppColors.primaryMuted.withOpacity(0.4),
+                      backgroundColor: AppColors.card,
+                      labelStyle: TextStyle(
+                        color: selected ? AppColors.primary : AppColors.textSecondary,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 13,
+                      ),
+                      side: BorderSide(
+                        color: selected ? AppColors.primary : AppColors.divider,
+                        width: selected ? 1.5 : 1,
+                      ),
+                      onSelected: (_) => setDialogState(() => seleccionado = s),
+                    );
+                  }),
+                  ChoiceChip(
+                    label: const Text('Sin timer'),
+                    selected: seleccionado == -1,
+                    selectedColor: AppColors.error.withOpacity(0.2),
+                    backgroundColor: AppColors.card,
+                    labelStyle: TextStyle(
+                      color: seleccionado == -1 ? AppColors.error : AppColors.textSecondary,
+                      fontWeight: seleccionado == -1 ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 13,
+                    ),
+                    side: BorderSide(
+                      color: seleccionado == -1 ? AppColors.error : AppColors.divider,
+                      width: seleccionado == -1 ? 1.5 : 1,
+                    ),
+                    onSelected: (_) => setDialogState(() => seleccionado = -1),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(90, 40),
+              ),
+              onPressed: () {
+                if (seleccionado != -1) {
+                  _restTimerController.duracionTotal = seleccionado;
+                  _restTimerController.segundosRestantes = seleccionado;
+                } else {
+                  // "Sin timer": establecer un flag especial con duración 0
+                  // que el overlay no mostrará nunca
+                  _restTimerController.duracionTotal = 0;
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
       ),
     );
   }
